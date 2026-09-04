@@ -1,0 +1,27 @@
+# Secrets and local environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Authentication and agent state must never be versioned
+auth.json
+**/auth.json
+.codex/
+.antigravity/
+.gemini/
+.opencode/
+.config/opencode/
+.local/share/opencode/
+
+# Temporary/editor files
+*.log
+*.tmp
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
