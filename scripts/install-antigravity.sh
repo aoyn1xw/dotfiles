@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if command -v antigravity >/dev/null 2>&1; then
+if command -v agy >/dev/null 2>&1; then
   printf '[antigravity] Already installed: '
-  antigravity --version || printf 'version unavailable\n'
+  agy --version || printf 'version unavailable\n'
   exit 0
 fi
 
@@ -15,9 +15,9 @@ fi
 printf '[antigravity] Installing with the official Antigravity CLI install script...\n'
 curl -fsSL https://antigravity.google/cli/install.sh | bash
 
-if ! command -v antigravity >/dev/null 2>&1; then
-  printf '[antigravity] ERROR: installation completed but antigravity is not on PATH.\n' >&2
+if ! command -v agy >/dev/null 2>&1; then
+  printf '[antigravity] ERROR: installation completed but agy is not on PATH.\n' >&2
   exit 1
 fi
 printf '[antigravity] Installed: '
-antigravity --version || printf 'version unavailable\n'
+agy --version || printf 'version unavailable\n'

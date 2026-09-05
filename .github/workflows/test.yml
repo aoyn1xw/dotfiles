@@ -1,0 +1,34 @@
+name: Test dotfiles
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+
+      - name: Check Bash syntax
+        run: bash -n install.sh scripts/*.sh tests/*.sh
+
+      - name: Run ShellCheck
+        run: shellcheck install.sh scripts/*.sh tests/*.sh
+
+      - name: Validate OpenCode JSON
+        run: python3 -m json.tool config/opencode/opencode.json >/dev/null
+
+      - name: Run mocked installer tests
+        run: bash tests/test-install.sh

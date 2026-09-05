@@ -43,10 +43,29 @@ The best end-to-end test is a brand-new Codespace for a repository with no `.dev
 
 ```bash
 command -v codex && codex --version
-command -v antigravity && antigravity --version
+command -v agy && agy --version
 command -v opencode && opencode --version
 test -n "${OPENROUTER_API_KEY:-}" && echo 'OpenRouter secret available' || echo 'OpenRouter secret missing'
 ```
+
+For a single read-only health check with actionable output, run:
+
+```bash
+bash scripts/doctor.sh
+```
+
+The doctor checks prerequisites, executable paths and version commands, the OpenCode configuration, and whether the OpenRouter secret is present. It never prints the secret value.
+
+Repository checks can be run without installing or authenticating any agent CLI:
+
+```bash
+bash -n install.sh scripts/*.sh tests/*.sh
+shellcheck install.sh scripts/*.sh tests/*.sh
+python3 -m json.tool config/opencode/opencode.json >/dev/null
+bash tests/test-install.sh
+```
+
+The mocked test suite covers rerun idempotency, `agy` detection, dependency and download failures, existing-config preservation, doctor health checks, and secret non-disclosure. GitHub Actions runs the same checks on every push and pull request.
 
 To rerun setup manually from the dotfiles clone, locate it and execute its installer. GitHub commonly places the clone in its Codespaces persisted-share area, but the exact location is implementation-managed; this portable command finds the script without touching the project:
 
@@ -88,11 +107,16 @@ A newly created disposable Codespace receives the current release available from
 
 ```text
 .
+├── .github/workflows/test.yml
 ├── install.sh
 ├── README.md
-├── config/opencode/opencode.json
-└── scripts/
-    ├── install-antigravity.sh
-    ├── install-codex.sh
-    └── install-opencode.sh
+├── config/
+│   └── opencode/opencode.json
+├── scripts/
+│   ├── doctor.sh
+│   ├── install-antigravity.sh
+│   ├── install-codex.sh
+│   └── install-opencode.sh
+└── tests/
+    └── test-install.sh
 ```

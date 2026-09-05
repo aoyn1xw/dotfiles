@@ -42,7 +42,7 @@ install_config
 
 printf '\nCodespaces environment setup complete.\n\n'
 printf 'Codex:       %s\n' "$(command -v codex >/dev/null 2>&1 && printf installed || printf missing)"
-printf 'Antigravity: %s\n' "$(command -v antigravity >/dev/null 2>&1 && printf installed || printf missing)"
+printf 'Antigravity: %s\n' "$(command -v agy >/dev/null 2>&1 && printf installed || printf missing)"
 printf 'OpenCode:    %s\n' "$(command -v opencode >/dev/null 2>&1 && printf installed || printf missing)"
 if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   printf 'OpenRouter:  secret available\n'
