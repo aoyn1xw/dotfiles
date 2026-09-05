@@ -32,7 +32,7 @@ The committed OpenCode config contains only `{env:OPENROUTER_API_KEY}`. During s
 ## Authentication that remains manual
 
 - **Codex:** run `codex` and follow its supported ChatGPT or API-key authentication flow. Provisioning never launches login.
-- **Antigravity:** run `antigravity` and follow Google's authentication flow. Provisioning never launches an interactive login or writes credentials to this repository.
+- **Antigravity:** run `agy` and follow Google's authentication flow. Provisioning never launches an interactive login or writes credentials to this repository.
 - **OpenCode/OpenRouter:** no `/connect` is needed when the Codespaces secret is available. If it is absent, add the secret as described above and recreate/restart the Codespace.
 
 No OAuth sessions, API keys, `auth.json` files, or authentication caches belong in this repository.
