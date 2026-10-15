@@ -27,8 +27,10 @@ jobs:
       - name: Run ShellCheck
         run: shellcheck install.sh scripts/*.sh tests/*.sh
 
-      - name: Validate OpenCode JSON
-        run: python3 -m json.tool config/opencode/opencode.json >/dev/null
+      - name: Validate JSON configuration
+        run: |
+          python3 -m json.tool config/opencode/opencode.json >/dev/null
+          python3 -m json.tool config/vscode/settings.json >/dev/null
 
       - name: Run mocked installer tests
         run: bash tests/test-install.sh

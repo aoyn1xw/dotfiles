@@ -35,6 +35,7 @@ run_installer() {
   fi
 }
 
+run_installer 'Shell, Git, and editor defaults' "${DOTFILES_DIR}/scripts/install-shell.sh"
 run_installer 'OpenAI Codex CLI' "${DOTFILES_DIR}/scripts/install-codex.sh"
 run_installer 'Google Antigravity CLI' "${DOTFILES_DIR}/scripts/install-antigravity.sh"
 run_installer 'OpenCode' "${DOTFILES_DIR}/scripts/install-opencode.sh"
@@ -44,6 +45,9 @@ printf '\nCodespaces environment setup complete.\n\n'
 printf 'Codex:       %s\n' "$(command -v codex >/dev/null 2>&1 && printf installed || printf missing)"
 printf 'Antigravity: %s\n' "$(command -v agy >/dev/null 2>&1 && printf installed || printf missing)"
 printf 'OpenCode:    %s\n' "$(command -v opencode >/dev/null 2>&1 && printf installed || printf missing)"
+printf '.bashrc:     %s\n' "$(grep -qxF -- '# >>> dotfiles managed block >>>' "${HOME}/.bashrc" 2>/dev/null && printf managed || printf missing)"
+printf '.gitconfig:  %s\n' "$(grep -qxF -- '# >>> dotfiles managed block >>>' "${HOME}/.gitconfig" 2>/dev/null && printf managed || printf missing)"
+printf 'gh auth:     %s\n' "$(command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && printf ok || printf unverified)"
 if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   printf 'OpenRouter:  secret available\n'
 else

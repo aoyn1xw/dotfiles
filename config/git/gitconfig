@@ -1,0 +1,25 @@
+# Managed by the dotfiles repository: re-run install.sh to refresh this block.
+# Author identity is deliberately not set here so this repository stays free of
+# personal details. Set it once with:
+#
+#   git config --global user.name "Your Name"
+#   git config --global user.email "you@example.com"
+#
+# Those keys land in ~/.gitconfig outside the managed block and therefore
+# survive every rerun of install.sh.
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = true
+
+[push]
+	autoSetupRemote = true
+
+[fetch]
+	prune = true
+	pruneTags = true
+
+[rerere]
+	enabled = true

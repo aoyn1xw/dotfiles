@@ -5,6 +5,9 @@ REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_ROOT="$(mktemp -d)"
 tests_run=0
 
+# shellcheck source=scripts/lib-managed-block.sh
+source "${REPO_DIR}/scripts/lib-managed-block.sh"
+
 cleanup() {
   rm -rf -- "$TEST_ROOT"
 }
@@ -69,7 +72,37 @@ make_healthy_environment() {
   make_mock_command "$mock_bin" agy 'agy 1.0.0'
   make_mock_command "$mock_bin" opencode '1.0.0'
   make_mock_command "$mock_bin" npm '10.0.0'
+  make_mock_command "$mock_bin" gh 'gh 2.0.0'
   make_mock_command "$mock_bin" curl 'curl must not be invoked' 97
+}
+
+count_markers() {
+  local target="$1"
+  grep -cxF -- "$MANAGED_BLOCK_BEGIN" "$target" || true
+}
+
+# write_managed_file <file> <body>
+#
+# Builds a file that the doctor should accept as correctly provisioned.
+write_managed_file() {
+  local target="$1"
+  local body="$2"
+
+  mkdir -p -- "$(dirname -- "$target")"
+  {
+    printf '%s\n' "$MANAGED_BLOCK_BEGIN"
+    printf '%s\n' "$body"
+    printf '%s\n' "$MANAGED_BLOCK_END"
+  } >"$target"
+}
+
+make_provisioned_home() {
+  local home="$1"
+
+  mkdir -p -- "$home"
+  write_managed_file "${home}/.bashrc" 'export PATH="${HOME}/.opencode/bin:${PATH}"'
+  write_managed_file "${home}/.gitconfig" "[include]
+	path = \"${REPO_DIR}/config/git/gitconfig\""
 }
 
 test_installer_is_idempotent_and_secret_safe() {
@@ -191,7 +224,8 @@ test_doctor_detects_healthy_and_broken_commands() {
   local output
 
   make_healthy_environment "$mock_bin"
-  mkdir -p -- "$home" "${config_home}/opencode"
+  make_provisioned_home "$home"
+  mkdir -p -- "${config_home}/opencode"
   ln -s -- "${REPO_DIR}/config/opencode/opencode.json" "${config_home}/opencode/opencode.json"
 
   if ! output="$(HOME="$home" XDG_CONFIG_HOME="$config_home" PATH="${mock_bin}:/usr/bin:/bin" OPENROUTER_API_KEY="$secret" bash "${REPO_DIR}/scripts/doctor.sh" 2>&1)"; then
@@ -212,11 +246,131 @@ test_doctor_detects_healthy_and_broken_commands() {
   pass_test 'doctor distinguishes healthy and broken commands without exposing secrets'
 }
 
+test_shell_defaults_install_idempotently_and_keep_user_content() {
+  local case_root="${TEST_ROOT}/shell-defaults"
+  local mock_bin="${case_root}/bin"
+  local home="${case_root}/home"
+  local config_home="${case_root}/config"
+  local bashrc="${home}/.bashrc"
+  local gitconfig="${home}/.gitconfig"
+  local vscode_settings="${home}/.vscode-server/data/Machine/settings.json"
+  local run_environment
+  local output
+
+  make_healthy_environment "$mock_bin"
+  mkdir -p -- "$home"
+  printf 'export CLASS_NOTE=keep-me\n' >"$bashrc"
+  printf '[user]\n\tname = Test Student\n\temail = test@example.com\n' >"$gitconfig"
+
+  run_environment=(env "HOME=${home}" "XDG_CONFIG_HOME=${config_home}" "PATH=${mock_bin}:/usr/bin:/bin")
+  if ! output="$("${run_environment[@]}" bash "${REPO_DIR}/install.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    fail_test 'Installation of the shell defaults failed.'
+  fi
+  if ! output="$("${run_environment[@]}" bash "${REPO_DIR}/install.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    fail_test 'Rerunning the installer over existing shell defaults failed.'
+  fi
+
+  grep -qF -- 'CLASS_NOTE=keep-me' "$bashrc" ||
+    fail_test 'Existing .bashrc content was discarded.'
+  grep -qF -- 'test@example.com' "$gitconfig" ||
+    fail_test 'Existing .gitconfig identity was discarded.'
+  grep -qF -- '${HOME}/.opencode/bin' "$bashrc" ||
+    fail_test 'The managed block does not export the agent CLI PATH.'
+
+  [[ "$(count_markers "$bashrc")" == '1' ]] ||
+    fail_test 'Rerunning duplicated the managed block in .bashrc.'
+  [[ "$(count_markers "$gitconfig")" == '1' ]] ||
+    fail_test 'Rerunning duplicated the managed block in .gitconfig.'
+
+  grep -qF -- "${REPO_DIR}/config/git/gitconfig" "$gitconfig" ||
+    fail_test '.gitconfig does not include the repository git settings.'
+  [[ -f "${bashrc}.pre-dotfiles" ]] ||
+    fail_test 'The original .bashrc was not backed up.'
+  [[ -f "$vscode_settings" ]] ||
+    fail_test 'VS Code machine settings were not installed.'
+
+  # Regression guard: a snippet without a trailing newline used to run into the
+  # closing marker and produce an unparseable shell file.
+  bash -n "$bashrc" ||
+    fail_test 'The generated .bashrc is not valid bash syntax.'
+
+  pass_test 'shell defaults install idempotently and preserve user content'
+}
+
+test_snippet_without_trailing_newline_is_normalized() {
+  local case_root="${TEST_ROOT}/newline"
+  local target="${case_root}/target"
+  local snippet="${case_root}/snippet"
+  mkdir -p -- "$case_root"
+
+  printf 'export PARTIAL=yes' >"$snippet"
+  printf 'preexisting\n' >"$target"
+  rewrite_managed_block "$target" "$snippet"
+
+  bash -n "$target" ||
+    fail_test 'A snippet without a trailing newline produced invalid syntax.'
+  grep -qF -- 'preexisting' "$target" ||
+    fail_test 'Content before the managed block was lost.'
+  grep -qxF -- "$MANAGED_BLOCK_END" "$target" ||
+    fail_test 'The closing marker was glued to the snippet body.'
+
+  pass_test 'a snippet without a trailing newline cannot corrupt the block'
+}
+
+test_doctor_reports_missing_shell_configuration() {
+  local case_root="${TEST_ROOT}/doctor-unprovisioned"
+  local mock_bin="${case_root}/bin"
+  local home="${case_root}/home"
+  local config_home="${case_root}/config"
+  local output
+
+  make_healthy_environment "$mock_bin"
+  mkdir -p -- "$home" "${config_home}/opencode"
+  ln -s -- "${REPO_DIR}/config/opencode/opencode.json" "${config_home}/opencode/opencode.json"
+
+  if output="$(HOME="$home" XDG_CONFIG_HOME="$config_home" PATH="${mock_bin}:/usr/bin:/bin" bash "${REPO_DIR}/scripts/doctor.sh" 2>&1)"; then
+    fail_test 'Doctor accepted a home directory with no managed shell block.'
+  fi
+
+  assert_contains "$output" '.bashrc has no managed block'
+  assert_contains "$output" '.gitconfig has no managed block'
+  pass_test 'doctor reports an unprovisioned shell configuration'
+}
+
+test_existing_vscode_settings_are_preserved() {
+  local case_root="${TEST_ROOT}/vscode-settings"
+  local mock_bin="${case_root}/bin"
+  local home="${case_root}/home"
+  local config_home="${case_root}/config"
+  local settings="${home}/.vscode-server/data/Machine/settings.json"
+  local output
+
+  make_healthy_environment "$mock_bin"
+  mkdir -p -- "$(dirname -- "$settings")"
+  printf '{"keepMe": true}\n' >"$settings"
+
+  if ! output="$(HOME="$home" XDG_CONFIG_HOME="$config_home" PATH="${mock_bin}:/usr/bin:/bin" bash "${REPO_DIR}/install.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    fail_test 'Installation with existing VS Code settings failed.'
+  fi
+
+  [[ "$(<"$settings")" == '{"keepMe": true}' ]] ||
+    fail_test 'Existing VS Code settings were modified.'
+  assert_contains "$output" 'leaving them unchanged'
+  pass_test 'existing VS Code settings are preserved'
+}
+
 test_installer_is_idempotent_and_secret_safe
 test_existing_config_is_preserved
 test_antigravity_installer_uses_agy
 test_download_failure_propagates
 test_missing_npm_is_reported
 test_doctor_detects_healthy_and_broken_commands
+test_shell_defaults_install_idempotently_and_keep_user_content
+test_snippet_without_trailing_newline_is_normalized
+test_doctor_reports_missing_shell_configuration
+test_existing_vscode_settings_are_preserved
 
 printf '[test] Completed %d test(s).\n' "$tests_run"
