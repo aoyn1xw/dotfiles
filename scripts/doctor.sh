@@ -108,6 +108,8 @@ check_shell_exports() {
   if [[ ! -f "$target" ]]; then
     return
   fi
+  # Literal ${HOME}: the managed block stores the path for later shells to expand.
+  # shellcheck disable=SC2016
   if grep -qF -- '${HOME}/.opencode/bin' "$target"; then
     ok 'The managed block keeps the agent CLI directories on PATH.'
   else
@@ -147,6 +149,7 @@ check_dependency npm
 check_cli 'Codex' codex
 check_cli 'Antigravity' agy
 check_cli 'OpenCode' opencode
+check_cli 'Cursor' agent
 check_opencode_config
 check_managed_block '.bashrc' "${HOME}/.bashrc"
 check_shell_exports

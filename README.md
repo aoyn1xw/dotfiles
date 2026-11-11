@@ -5,6 +5,7 @@ This repository bootstraps a personal coding-agent command-line environment in e
 - [OpenAI Codex CLI](https://developers.openai.com/codex/cli/) from the official `@openai/codex` npm package;
 - [Google Antigravity CLI](https://antigravity.google/) using Google's official CLI install script;
 - [OpenCode](https://opencode.ai/docs/) with its official install script and an OpenRouter configuration that reads `OPENROUTER_API_KEY` from the environment;
+- [Cursor CLI](https://cursor.com/docs/cli/overview) using Cursor's official install script, which links the `agent` command into `$HOME/.local/bin`;
 - everyday shell, git, and editor defaults for the Codespace you are working in.
 
 The Antigravity installer uses Google's current CLI endpoint, `https://antigravity.google/cli/install.sh`. This replaces the repository's earlier Gemini CLI fallback; no npm package name is inferred for Antigravity.
@@ -69,6 +70,7 @@ The committed OpenCode config contains only `{env:OPENROUTER_API_KEY}`. During s
 - **Codex:** run `codex` and follow its supported ChatGPT or API-key authentication flow. Provisioning never launches login.
 - **Antigravity:** run `agy` and follow Google's authentication flow. Provisioning never launches an interactive login or writes credentials to this repository.
 - **OpenCode/OpenRouter:** no `/connect` is needed when the Codespaces secret is available. If it is absent, add the secret as described above and recreate/restart the Codespace.
+- **Cursor:** run `agent login`, or set `CURSOR_API_KEY` as a Codespaces secret. Provisioning never launches login or writes credentials to this repository.
 
 No OAuth sessions, API keys, `auth.json` files, or authentication caches belong in this repository.
 
@@ -80,6 +82,7 @@ The best end-to-end test is a brand-new Codespace for a repository with no `.dev
 command -v codex && codex --version
 command -v agy && agy --version
 command -v opencode && opencode --version
+command -v agent && agent --version
 test -n "${OPENROUTER_API_KEY:-}" && echo 'OpenRouter secret available' || echo 'OpenRouter secret missing'
 ```
 
@@ -101,7 +104,7 @@ python3 -m json.tool config/vscode/settings.json >/dev/null
 bash tests/test-install.sh
 ```
 
-The mocked test suite covers rerun idempotency, `agy` detection, dependency and download failures, existing-config preservation, doctor health checks, secret non-disclosure, managed-block idempotency, preservation of pre-existing `~/.bashrc` and `~/.gitconfig` content, and preservation of existing VS Code settings. GitHub Actions runs the same checks on every push and pull request.
+The mocked test suite covers rerun idempotency, `agy` and `agent` detection, dependency and download failures, existing-config preservation, doctor health checks, secret non-disclosure, managed-block idempotency, preservation of pre-existing `~/.bashrc` and `~/.gitconfig` content, and preservation of existing VS Code settings. GitHub Actions runs the same checks on every push and pull request.
 
 To rerun setup manually from the dotfiles clone, locate it and execute its installer. GitHub commonly places the clone in its Codespaces persisted-share area, but the exact location is implementation-managed; this portable command finds the script without touching the project:
 
@@ -119,6 +122,7 @@ The bootstrap skips tools already on `PATH` so routine shell starts stay fast. T
 npm install --global @openai/codex
 curl -fsSL https://antigravity.google/cli/install.sh | bash
 curl --proto '=https' --tlsv1.2 -fsSL https://opencode.ai/install | bash
+agent update
 ```
 
 A newly created disposable Codespace receives the current release available from those channels at creation time.
@@ -132,7 +136,7 @@ A newly created disposable Codespace receives the current release available from
 
 ## Troubleshooting
 
-- **A command is missing:** rerun `install.sh` and read the component-specific error. Node/npm is required for Codex; `curl` is required for Antigravity and OpenCode. Standard Codespaces images provide these prerequisites.
+- **A command is missing:** rerun `install.sh` and read the component-specific error. Node/npm is required for Codex; `curl` is required for Antigravity, OpenCode, and Cursor CLI. Standard Codespaces images provide these prerequisites.
 - **A global npm permission error occurs:** use the Codespaces image's user-managed Node installation rather than `sudo`; do not install agent CLIs as root.
 - **`opencode` is installed but not found in an old shell:** start a new shell or add `$HOME/.opencode/bin` to that shell's `PATH`. The root installer includes it while validating.
 - **A CLI worked during install but is missing in a new terminal:** the installers only set `PATH` for their own process. The managed block in `~/.bashrc` restores it; run `source ~/.bashrc` or rerun `install.sh` if the block is gone.
@@ -160,6 +164,7 @@ A newly created disposable Codespace receives the current release available from
 │   ├── doctor.sh
 │   ├── install-antigravity.sh
 │   ├── install-codex.sh
+│   ├── install-cursor.sh
 │   ├── install-opencode.sh
 │   ├── install-shell.sh
 │   └── lib-managed-block.sh

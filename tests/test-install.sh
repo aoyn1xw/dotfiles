@@ -71,6 +71,7 @@ make_healthy_environment() {
   make_mock_command "$mock_bin" codex 'codex-cli 1.0.0'
   make_mock_command "$mock_bin" agy 'agy 1.0.0'
   make_mock_command "$mock_bin" opencode '1.0.0'
+  make_mock_command "$mock_bin" agent 'agent 1.0.0'
   make_mock_command "$mock_bin" npm '10.0.0'
   make_mock_command "$mock_bin" gh 'gh 2.0.0'
   make_mock_command "$mock_bin" curl 'curl must not be invoked' 97
@@ -100,6 +101,7 @@ make_provisioned_home() {
   local home="$1"
 
   mkdir -p -- "$home"
+  # shellcheck disable=SC2016 # literal ${HOME} matches the managed bashrc snippet
   write_managed_file "${home}/.bashrc" 'export PATH="${HOME}/.opencode/bin:${PATH}"'
   write_managed_file "${home}/.gitconfig" "[include]
 	path = \"${REPO_DIR}/config/git/gitconfig\""
@@ -125,6 +127,8 @@ test_installer_is_idempotent_and_secret_safe() {
 
   assert_contains "$output" '[antigravity] Already installed: agy 1.0.0'
   assert_contains "$output" 'Antigravity: installed'
+  assert_contains "$output" '[cursor] Already installed: agent 1.0.0'
+  assert_contains "$output" 'Cursor:      installed'
   assert_contains "$output" 'OpenRouter:  secret available'
   assert_not_contains "$output" "$secret"
   if [[ -L "$destination" ]]; then
@@ -185,6 +189,37 @@ test_antigravity_installer_uses_agy() {
   assert_contains "$output" '[antigravity] Already installed: agy 1.0.0'
   assert_not_contains "$output" 'curl must not be invoked'
   pass_test 'Antigravity installation is detected through agy'
+}
+
+test_cursor_installer_uses_agent() {
+  local case_root="${TEST_ROOT}/agent-detection"
+  local mock_bin="${case_root}/bin"
+  local output
+
+  make_mock_command "$mock_bin" agent 'agent 1.0.0'
+  make_mock_command "$mock_bin" curl 'curl must not be invoked' 97
+
+  if ! output="$(PATH="${mock_bin}:/usr/bin:/bin" bash "${REPO_DIR}/scripts/install-cursor.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    fail_test 'Cursor installer did not recognize agent.'
+  fi
+
+  assert_contains "$output" '[cursor] Already installed: agent 1.0.0'
+  assert_not_contains "$output" 'curl must not be invoked'
+  pass_test 'Cursor installation is detected through agent'
+}
+
+test_cursor_missing_curl_is_reported() {
+  local empty_bin="${TEST_ROOT}/missing-curl-cursor/bin"
+  local output
+
+  mkdir -p -- "$empty_bin"
+  if output="$(PATH="$empty_bin" "$BASH" "${REPO_DIR}/scripts/install-cursor.sh" 2>&1)"; then
+    fail_test 'Cursor installer succeeded without curl.'
+  fi
+
+  assert_contains "$output" 'curl is required'
+  pass_test 'Cursor installer reports a missing curl dependency'
 }
 
 test_download_failure_propagates() {
@@ -276,6 +311,7 @@ test_shell_defaults_install_idempotently_and_keep_user_content() {
     fail_test 'Existing .bashrc content was discarded.'
   grep -qF -- 'test@example.com' "$gitconfig" ||
     fail_test 'Existing .gitconfig identity was discarded.'
+  # shellcheck disable=SC2016 # literal ${HOME} matches the managed bashrc snippet
   grep -qF -- '${HOME}/.opencode/bin' "$bashrc" ||
     fail_test 'The managed block does not export the agent CLI PATH.'
 
@@ -365,6 +401,8 @@ test_existing_vscode_settings_are_preserved() {
 test_installer_is_idempotent_and_secret_safe
 test_existing_config_is_preserved
 test_antigravity_installer_uses_agy
+test_cursor_installer_uses_agent
+test_cursor_missing_curl_is_reported
 test_download_failure_propagates
 test_missing_npm_is_reported
 test_doctor_detects_healthy_and_broken_commands
