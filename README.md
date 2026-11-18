@@ -171,3 +171,30 @@ A newly created disposable Codespace receives the current release available from
 └── tests/
     └── test-install.sh
 ```
+
+
+## Physical Android testing through a Windows ADB bridge
+
+For a Codespace with the SSH server feature enabled (for example, `ghcr.io/devcontainers/features/sshd:1`), these optional scripts let its ADB client talk to the ADB server on your Windows laptop. They do **not** expose ADB on a public Codespaces port.
+
+On **Windows PowerShell**, with GitHub CLI authenticated and Android SDK Platform-Tools on PATH:
+
+```powershell
+gh codespace list
+pwsh -File ./scripts/start-codespace-adb-tunnel.ps1 -Codespace YOUR_CODESPACE_NAME
+```
+
+Run the PowerShell script from a local checkout of this dotfiles repository. Keep that terminal open; press Ctrl+C to stop the tunnel. It generates a temporary SSH configuration and removes it on exit.
+
+Inside the **Codespace**, install the lightweight ADB client if needed, then check the tunnel:
+
+```bash
+sudo apt-get update && sudo apt-get install -y adb
+bash scripts/check-codespace-adb.sh
+export ADB_SERVER_SOCKET=tcp:127.0.0.1:15037
+adb devices -l
+```
+
+The check script path above is relative to a checkout of this dotfiles repository inside the Codespace; alternatively invoke it using its full path. An empty device list is normal until a device is connected to the **Windows** ADB server. Pair the phone on Windows with the owner's permission, and disable/revoke wireless debugging when finished. The tunnel requires your Windows computer and SSH process to remain running.
+
+**Security:** ADB grants powerful device access. Use only authorized test devices, keep the forwarded socket on `127.0.0.1`, and never commit SSH keys, pairing codes, or device credentials. The scripts do not install SSHD or make a Codespace's devcontainer changes for you. Agent-device integration must be tested separately.
