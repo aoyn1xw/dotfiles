@@ -198,3 +198,17 @@ adb devices -l
 The check script path above is relative to a checkout of this dotfiles repository inside the Codespace; alternatively invoke it using its full path. An empty device list is normal until a device is connected to the **Windows** ADB server. Pair the phone on Windows with the owner's permission, and disable/revoke wireless debugging when finished. The tunnel requires your Windows computer and SSH process to remain running.
 
 **Security:** ADB grants powerful device access. Use only authorized test devices, keep the forwarded socket on `127.0.0.1`, and never commit SSH keys, pairing codes, or device credentials. The scripts do not install SSHD or make a Codespace's devcontainer changes for you. Agent-device integration must be tested separately.
+
+
+### Bootstrap a Windows laptop without administrator rights
+
+The Codespaces dotfiles installer runs in Linux and cannot install tools on your Windows laptop. On a Windows machine, download the standalone PowerShell bootstrap and review it before running:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/aoyn1xw/dotfiles/main/scripts/setup-windows-codespaces-adb.ps1 -OutFile "$env:TEMP\\setup-windows-codespaces-adb.ps1"
+& "$env:TEMP\\setup-windows-codespaces-adb.ps1"
+```
+
+The bootstrap installs portable GitHub CLI and ADB in `%LOCALAPPDATA%\\CodespacesAdbTools\\bin`, adds that folder to the current user's PATH, and checks whether `ssh.exe` is already available. It skips tools already installed, does not need elevation, and does not install an SSH server on Windows. It downloads official GitHub CLI release ZIPs and Google's Android Platform-Tools ZIP. It does not authenticate, pair devices, or start a tunnel. A managed school laptop may block unsigned scripts or executable downloads through organizational policy.
+
+Then run `gh auth login` and, if required, `gh auth refresh -h github.com -s codespace`. Clone this dotfiles repository locally and run `scripts/start-codespace-adb-tunnel.ps1` to start the bridge.
