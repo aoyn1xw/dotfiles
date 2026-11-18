@@ -29,7 +29,7 @@ function Install-Gh {
   # PROCESSOR_ARCHITEW6432 identifies the native architecture for 32-bit PowerShell on 64-bit Windows.
   $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
   if (-not $arch) { throw 'Could not determine Windows CPU architecture.' }
-  $suffix = if ($arch -eq 'Arm64') { 'windows_arm64.zip' } elseif ($arch -eq 'X64') { 'windows_amd64.zip' } else { throw "Unsupported Windows architecture: $arch" }
+  $suffix = if ($arch -ieq 'ARM64') { 'windows_arm64.zip' } elseif ($arch -ieq 'AMD64' -or $arch -ieq 'X64') { 'windows_amd64.zip' } else { throw "Unsupported Windows architecture: $arch" }
   $asset = $release.assets | Where-Object { $_.name -and $_.name.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
   if (-not $asset) { throw "Could not find GitHub CLI ZIP for $arch." }
   $zip = Join-Path $env:TEMP ([guid]::NewGuid().ToString() + '.zip')
