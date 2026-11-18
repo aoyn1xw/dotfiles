@@ -26,9 +26,11 @@ function Install-Gh {
     return
   }
   $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/cli/cli/releases/latest' -Headers @{ 'User-Agent' = 'codespaces-adb-bootstrap' }
-  $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+  # PROCESSOR_ARCHITEW6432 identifies the native architecture for 32-bit PowerShell on 64-bit Windows.
+  $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+  if (-not $arch) { throw 'Could not determine Windows CPU architecture.' }
   $suffix = if ($arch -eq 'Arm64') { 'windows_arm64.zip' } elseif ($arch -eq 'X64') { 'windows_amd64.zip' } else { throw "Unsupported Windows architecture: $arch" }
-  $asset = $release.assets | Where-Object { $_.name.EndsWith($suffix) } | Select-Object -First 1
+  $asset = $release.assets | Where-Object { $_.name -and $_.name.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
   if (-not $asset) { throw "Could not find GitHub CLI ZIP for $arch." }
   $zip = Join-Path $env:TEMP ([guid]::NewGuid().ToString() + '.zip')
   $dir = Join-Path $env:TEMP ([guid]::NewGuid().ToString())
@@ -85,6 +87,8 @@ try {
   Write-Host '  .\scripts\start-codespace-adb-tunnel.ps1 -Codespace YOUR_CODESPACE_NAME'
   Write-Host 'No device pairing or SSH tunnel was started automatically.'
 } catch {
-  Write-Error "Bootstrap failed: $($_.Exception.Message)"
+  Write-Host "Bootstrap failed: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "Location: $($_.InvocationInfo.PositionMessage)" -ForegroundColor Red
+  Write-Host "Stack: $($_.ScriptStackTrace)" -ForegroundColor Red
   exit 1
 }
